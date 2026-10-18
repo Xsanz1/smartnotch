@@ -1,0 +1,152 @@
+<Window x:Class="SmartNotch.App.NotchWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SmartNotch"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" ShowActivated="False"
+        Width="700" Height="220" Left="0" Top="0">
+
+    <Grid HorizontalAlignment="Center" VerticalAlignment="Top">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Flare Kiri (Inverted curve menyatu ke bezel MacBook) -->
+        <Path x:Name="FlareL" Grid.Column="0" Fill="Black" VerticalAlignment="Top"
+              Width="12" Height="12" Data="M0,0 L12,0 L12,12 A12,12 0 0 0 0,0 Z"/>
+
+        <!-- Badan Notch Utama -->
+        <Border x:Name="Body" Grid.Column="1" Background="Black" AllowDrop="True"
+                CornerRadius="0,0,14,14" Width="200" Height="32"
+                VerticalAlignment="Top" ClipToBounds="True"
+                BorderBrush="#18FFFFFF" BorderThickness="0,0,0,1">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="28" ShadowDepth="4" Direction="270" Color="Black" Opacity="0.65"/>
+            </Border.Effect>
+
+            <Grid>
+                <!-- Ambient Glow / Gradient Background (1:1 Nusa Album Tint) -->
+                <Border x:Name="Tint" CornerRadius="0,0,24,24"/>
+
+                <!-- 1. IDLE LAYER (1:1 Nusa Reel: [🟢 Ring] + [HH:mm Clock] + [Equalizer Wave / 🔴 Ring] & Call Pill) -->
+                <Grid x:Name="IdleLayer" Height="32" VerticalAlignment="Top">
+                    <!-- Normal Idle Mode (Clock + Battery + Equalizer) -->
+                    <Grid x:Name="NormalIdleContent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="38"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="38"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Kiri: Lingkaran Indikator Baterai (1:1 Nusa Circular Battery Ring) -->
+                        <Grid Grid.Column="0" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Canvas Width="16" Height="16">
+                                <Ellipse x:Name="BatteryTrackRing" Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
+                                         Stroke="#2530D158" StrokeThickness="1.8"/>
+                                <Path x:Name="BatteryRingPath" Stroke="#30D158" StrokeThickness="1.8"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            </Canvas>
+                            <TextBlock x:Name="BatteryChargeBolt" Text="⚡" FontSize="8"
+                                       Foreground="#30D158" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Margin="0.5,-1,0,0" Visibility="Collapsed"/>
+                        </Grid>
+
+                        <!-- Tengah: Jam Digital (HH:mm) Murni & Bersih -->
+                        <TextBlock x:Name="IdleClockText" Grid.Column="1" Text="12:00"
+                                   Foreground="#F0FFFFFF" FontSize="12" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Variable Display, Segoe UI"/>
+
+                        <!-- Kanan Mode A: Equalizer Waveform Bars (Saat Musik Berputar) -->
+                        <StackPanel x:Name="IdleBars" Grid.Column="2" Orientation="Horizontal"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Height="14" Visibility="Collapsed"/>
+
+                        <!-- Kanan Mode B: Ring Merah Status (Timer Fokus Pomodoro / Standby) -->
+                        <Border x:Name="IdleRedBox" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Width="16" Height="16" CornerRadius="8"
+                                Background="#22FF453A" BorderBrush="#FF453A" BorderThickness="1.5">
+                            <Ellipse x:Name="IdleRedDot" Width="6" Height="6" Fill="#FF453A"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- WhatsApp Call Idle Pill Mode (1:1 iOS Dynamic Island Phone Call) -->
+                    <Grid x:Name="CallIdleContent" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="34"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="58"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Kiri: Badge Ikon Telepon Hijau -->
+                        <Border Grid.Column="0" Width="20" Height="20" CornerRadius="10"
+                                Background="#FF25D366" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="📞" FontSize="9" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-0.5,0,0"/>
+                        </Border>
+
+                        <!-- Tengah: Nama Kontak Penelepon -->
+                        <TextBlock x:Name="CallIdleName" Grid.Column="1" Text="WhatsApp"
+                                   Foreground="#F0FFFFFF" FontSize="11" FontWeight="SemiBold"
+                                   HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0"
+                                   TextTrimming="CharacterEllipsis" FontFamily="Segoe UI Variable Display, Segoe UI"/>
+
+                        <!-- Kanan: Durasi Panggilan & Gelombang Suara Hijau -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <TextBlock x:Name="CallIdleTimer" Text="00:00"
+                                       Foreground="#30D158" FontSize="10" FontWeight="Bold"
+                                       VerticalAlignment="Center" Margin="0,0,4,0"
+                                       FontFamily="Segoe UI Variable Display, Consolas, Segoe UI"/>
+                            <StackPanel x:Name="CallIdleBars" Orientation="Horizontal" VerticalAlignment="Center" Height="10"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <!-- 2. PEEK LAYER (Live activity notif singkat) -->
+                <Grid x:Name="PeekLayer" Height="40" VerticalAlignment="Top" Opacity="0" IsHitTestVisible="False">
+                    <Border x:Name="PeekArtBox" Width="22" Height="22" CornerRadius="5" ClipToBounds="True"
+                            HorizontalAlignment="Left" Margin="12,0,0,0" Visibility="Collapsed">
+                        <Image x:Name="PeekArt" Stretch="UniformToFill"/>
+                    </Border>
+                    <TextBlock x:Name="PeekText" Margin="14,0,14,0" Foreground="White" FontSize="12" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" HorizontalAlignment="Center"
+                               FontFamily="Segoe UI Variable Display, Segoe UI"/>
+                </Grid>
+
+                <!-- 3. EXPANDED LAYER (1:1 Nusa: Content + Nav Chevron Kiri/Kanan + Dots Paginasi) -->
+                <Grid x:Name="ExpandedLayer" Opacity="0" IsHitTestVisible="False" AllowDrop="True">
+                    <!-- Konten Widget Utama (Musik, Shelf, Fokus, Minum, Sistem) -->
+                    <Grid x:Name="ContentContainer" Margin="32,8,32,18" ClipToBounds="True"/>
+
+                    <!-- Tombol Geser Kiri (Chevron <) -->
+                    <Button x:Name="NavPrevBtn" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Margin="6,0,0,10" Width="22" Height="22" Cursor="Hand"
+                            Style="{DynamicResource NotchNavButton}">
+                        <TextBlock Text="‹" FontSize="16" FontWeight="Bold" Foreground="#DDFFFFFF"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                    </Button>
+
+                    <!-- Tombol Geser Kanan (Chevron >) -->
+                    <Button x:Name="NavNextBtn" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Margin="0,0,6,10" Width="22" Height="22" Cursor="Hand"
+                            Style="{DynamicResource NotchNavButton}">
+                        <TextBlock Text="›" FontSize="16" FontWeight="Bold" Foreground="#DDFFFFFF"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                    </Button>
+
+                    <!-- Dots Paginasi Halaman di Bawah Tengah: • • ━ • • -->
+                    <StackPanel x:Name="PaginationDots" Orientation="Horizontal"
+                                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                Margin="0,0,0,6"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Flare Kanan (Inverted curve menyatu ke bezel MacBook) -->
+        <Path x:Name="FlareR" Grid.Column="2" Fill="Black" VerticalAlignment="Top"
+              Width="12" Height="12" Data="M12,0 L0,0 L0,12 A12,12 0 0 1 12,0 Z"/>
+    </Grid>
+</Window>
