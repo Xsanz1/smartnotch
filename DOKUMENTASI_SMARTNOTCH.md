@@ -184,7 +184,9 @@ Notch memiliki 7 widget modular yang dapat digeser secara horizontal:
 2. **Widget Kartu Panggilan (`CallWidget.cs`)**:
    - Avatar kontak beranimasi halo pulse hijau, nama kontak tebal, status panggilan, timer durasi real-time, visualisasi 4-batang gelombang suara, tombol **💬 Buka Aplikasi**, dan tombol **🎙 / 🔇 Mute Mic**.
 3. **Widget Pesan & Notifikasi (`NotifWidget.cs`)**:
-   - Menampilkan daftar pesan masuk WhatsApp dan notifikasi sistem dengan badge hijau `💬 WhatsApp`, waktu pesan, nama pengirim, teks isi pesan lengkap, tombol **Bersihkan**, serta **kemampuan klik langsung (`↗`)**: Setiap kartu notifikasi dapat diklik untuk langsung membuka atau memfokuskan aplikasi pengirim ke layar depan melalui `AppLauncherService`.
+   - Menampilkan daftar pesan masuk WhatsApp dan notifikasi sistem dengan badge hijau `💬 WhatsApp`, waktu pesan, nama pengirim, teks isi pesan lengkap, dan tombol **Bersihkan**.
+   - **Fitur Balas Cepat (*Inline Quick Reply*)**: Setiap kartu pesan dilengkapi tombol **`↩ Balas`** yang memunculkan kolom input teks balasan langsung. Pengguna dapat mengetik dan menekan *Enter* atau tombol **`➤ Kirim`** untuk menyalin pesan ke *clipboard* dan seketika membuka WhatsApp.
+   - **Tombol Buka Aplikasi (`↗`)**: Mengklik kartu notifikasi atau ikon panah langsung mengarahkan dan memfokuskan jendela aplikasi pengirim ke layar depan via `AppLauncherService`.
 4. **Widget File Shelf (`ShelfWidget.cs`)**:
    - Area kotak putus-putus (*dashed border*) bertuliskan `📥 Lepaskan file di sini`.
    - Cukup seret (*drag and drop*) file apa pun ke notch untuk disimpan sementara, melihat daftar kartu berkas, dan menyeretnya kembali ke aplikasi lain.
@@ -272,6 +274,37 @@ Notch memiliki 7 widget modular yang dapat digeser secara horizontal:
 
 ---
 
+### 4.7. Fitur Pembaruan & Peningkatan Terbaru (v1.1.2)
+
+1. **Fitur Balas Cepat (*Inline Quick Reply*) di Tab Pesan**:
+   - Menghadirkan pengalaman interaktif mirip iOS Dynamic Island / macOS Notification Reply.
+   - Di setiap kartu pesan (khususnya WhatsApp), terdapat tombol **`↩ Balas`**.
+   - Saat diklik, muncul kolom input teks dan tombol **`➤ Kirim`** secara *inline* tanpa menutup notch.
+   - Teks balasan otomatis disalin ke *clipboard* dan jendela WhatsApp langsung diaktifkan ke layar depan untuk mengirimkan pesan ke kontak yang bersangkutan.
+
+2. **Pengoptimal Memori Otomatis (*Memory Trimmer - `MemoryOptimizer.cs`*)**:
+   - Mengatasi footprint memori awal dari *single-file self-contained bundle* dan GPU composition WPF.
+   - Memanggil `EmptyWorkingSet` via `psapi.dll` bersama Garbage Collection generasi penuh:
+     - Dipicu otomatis **3.5 detik setelah aplikasi dibuka** (membersihkan cache startup & JIT).
+     - Dipicu otomatis **setiap kali notch menutup (*collapse*) dari mode Expanded ke Idle**.
+   - Memastikan penggunaan RAM di Task Manager tetap konsisten di kisaran **~35–45 MB**.
+
+3. **Suara Bel / Chime Notifikasi Pesan Masuk**:
+   - Memainkan audio *chime* lembut (`SystemSounds.Asterisk`) secara native ketika pesan WhatsApp atau notifikasi Windows baru tiba di notch.
+   - Dilengkapi toggle aktif/nonaktif pada jendela Pengaturan (`NotificationSound`).
+
+4. **Pengatur Opasitas & Transparansi Badan Notch (70% - 100%)**:
+   - Memungkinkan pengguna mengatur tingkat transparansi badan notch di Pengaturan (`NotchOpacityPercent`).
+   - Mendukung estetika semi-transparan elegan (70% - 95%) hingga OLED *deep black* pekat (100%).
+
+5. **Tombol Autostart di Jendela Pengaturan Utama**:
+   - Checkbox *"Mulai bersama Windows"* kini tersedia langsung di antarmuka `SettingsWindow.cs` (tersinkronisasi penuh dengan Windows Registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` dan menu tray).
+
+6. **Suite Pengujian End-to-End (E2E) Otomatis (`tests/e2e-test.ps1`)**:
+   - Skrip pengujian otomatis komprehensif (11 kasus uji) yang menguji seluruh alur produksi secara nyata: integritas file installer & executable, eksekusi 32 unit tests xUnit, peluncuran *live process*, pemantauan stabilitas RAM, penempatan koordinat jendela, keberadaan `settings.json`, kelayakan log file, hingga *clean shutdown*.
+
+---
+
 ## 5. Struktur Direktori Kode Sumber
 
 ```
@@ -296,6 +329,9 @@ smartnotch/
 │       ├── Interop/
 │       │   └── Win32.cs               # Definisi P/Invoke Win32 API (User32, Kernel32, Shell32, SetWindowPos)
 │       ├── Services/
+│       │   ├── AppLauncherService.cs  # Layanan peluncur & pemfokus aplikasi notifikasi ke depan
+│       │   ├── MemoryOptimizer.cs     # Layanan pemangkas memori RAM idle (EmptyWorkingSet)
+│       │   ├── NotifItem.cs           # Model entitas notifikasi & pesan masuk
 │       │   ├── SettingsService.cs     # Layanan penyimpanan & normalisasi konfigurasi JSON
 │       │   ├── Log.cs                 # Layanan file logger thread-safe dengan rotasi 7 hari
 │       │   ├── WpnNotificationReader.cs # Pembaca database notifikasi Windows (SQLite)
@@ -312,7 +348,7 @@ smartnotch/
 │       │   └── NotifCalendarServices.cs # Layanan notifikasi Windows & agenda kalender
 │       └── Widgets/
 │           ├── CallWidget.cs          # UI Kartu Panggilan Komunikasi (1:1 Apple Call Card)
-│           ├── NotifWidget.cs         # UI Kartu Riwayat Pesan WhatsApp & Notifikasi
+│           ├── NotifWidget.cs         # UI Kartu Riwayat Pesan WhatsApp & Balas Cepat
 │           ├── MediaWidget.cs         # UI Pemutar Musik, Lirik 3-Baris & Slider Volume
 │           ├── ShelfWidget.cs         # UI Drag & Drop File Shelf
 │           ├── TimerWidget.cs         # UI Timer Fokus Pomodoro
@@ -320,9 +356,10 @@ smartnotch/
 │           ├── SystemWidget.cs        # UI Grafik Mini Pemantau Sistem
 │           └── Ui.cs                  # Pustaka pembantu pembuatan komponen UI dinamis
 └── tests/
+    ├── e2e-test.ps1                   # Skrip pengujian otomatis End-to-End (11 test cases)
     └── SmartNotch.Tests/
         ├── SmartNotch.Tests.csproj    # Proyek pengujian otomatis berbasis xUnit
-        └── CoreTests.cs               # 25 automated test cases (Settings, Water, Call, Update, Log)
+        └── CoreTests.cs               # 32 automated unit test cases
 ```
 
 ---
