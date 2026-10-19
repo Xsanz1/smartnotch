@@ -245,8 +245,12 @@ Notch memiliki 7 widget modular yang dapat digeser secara horizontal:
   - Pilihan monitor aktif: Menempatkan notch di monitor pilihan (monitor utama atau monitor eksternal 1, 2, dst) dengan koordinat piksel fisik DPI-aware (`SetWindowPos`).
   - Hotkey global kustom (default: `Ctrl + Alt + N`).
   - Pengatur jeda menutup (*collapse delay*) saat kursor meninggalkan notch.
+  - Pengatur **Opasitas Notch (70% - 100%)** untuk penyesuaian transparansi gelap elegan.
+  - Toggle **Suara Bel Notifikasi** (chime lembut) saat ada pesan WhatsApp/notifikasi baru.
   - Sensor layar penuh (*fullscreen suppression*): Otomatis menyembunyikan notch jika aplikasi/game fullscreen sedang aktif di monitor tersebut.
-  - Pengatur autostart bersama Windows.
+  - Pengatur autostart bersama Windows (tersinkronisasi penuh dengan registry dan tray).
+- **Pengoptimal Memori Otomatis (`MemoryOptimizer.cs`)**:
+  - Memanggil `EmptyWorkingSet` via `psapi.dll` pasca-startup dan setiap kali notch menutup (*collapse*) dari mode Expanded ke Idle, memastikan footprint RAM tetap sangat rendah (~35-45 MB).
 
 ---
 

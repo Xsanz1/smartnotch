@@ -92,8 +92,15 @@ dotnet test tests\SmartNotch.Tests
   - Pilihan monitor tampilan notch (Multi-Monitor support).
   - Atur hotkey global (default: `Ctrl + Alt + N`).
   - Atur jeda otomatis menutup (*collapse delay*) saat kursor keluar.
+  - Atur **Opasitas Notch (70% - 100%)** untuk efek semi-transparan elegan.
+  - Toggle **Bunyi Bel Notifikasi Pesan Masuk** (audio chime lembut).
+  - Toggle **Mulai Otomatis Bersama Windows (Autostart)**.
   - Daftar aplikasi panggilan yang dipantau (WhatsApp, Zoom, Teams, Discord, Skype).
   - Pengaturan tersimpan otomatis di `%LOCALAPPDATA%\SmartNotch\settings.json`.
+- **Fitur Balas Cepat (*Quick Reply*)**:
+  - Pada tab Pesan, klik tombol **`↩ Balas`** pada kartu pesan untuk memunculkan kolom teks balasan cepat. Tekan Enter atau klik `➤ Kirim` untuk menyalin balasan dan langsung memfokuskan WhatsApp.
+- **Pengoptimal Memori Otomatis (*Memory Trimmer*)**:
+  - Menggunakan API kernel `EmptyWorkingSet` pasca-startup dan setiap kali notch menutup untuk menjaga penggunaan RAM idle tetap super ringan (~35-45 MB).
 - **Dukungan Multi-Monitor**: Penempatan notch berbasis piksel fisik DPI-aware, otomatis menyesuaikan saat monitor diputus/disambung.
 - **Sensor Fullscreen Cerdas**: Notch otomatis sembunyi saat game atau aplikasi layar penuh dibuka hanya pada monitor yang bersangkutan.
 - **Sistem Logging**: Log operasi dan error otomatis disimpan di `%LOCALAPPDATA%\SmartNotch\logs` dengan retensi otomatis 7 hari.

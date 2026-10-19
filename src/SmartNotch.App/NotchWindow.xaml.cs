@@ -425,6 +425,10 @@ public partial class NotchWindow : Window
         Notif.Received += n =>
         {
             WhatsApp.OnNotificationReceived(n);
+            if (SettingsService.Current.NotificationSound)
+            {
+                try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
+            }
             if (!SettingsService.Current.ShowNotificationPeek) return;
             if (WhatsApp.CurrentCall.State == WhatsAppCallState.Incoming) return; // sudah ditangani peek panggilan
             if (ShowMessagePeek(n)) return;
@@ -505,6 +509,7 @@ public partial class NotchWindow : Window
         PositionOnScreen();
         Dispatcher.BeginInvoke(PositionOnScreen, DispatcherPriority.Loaded);
 
+        ApplyOpacity();
         SetClickThrough(true);
         UpdateIdle();
         UpdateTint();
@@ -658,8 +663,22 @@ public partial class NotchWindow : Window
         SelectTab(idx >= 0 ? idx : 0);
     }
 
+    private void ApplyOpacity()
+    {
+        try
+        {
+            double op = Math.Clamp(SettingsService.Current.NotchOpacityPercent / 100.0, 0.70, 1.0);
+            byte alpha = (byte)Math.Round(255 * op);
+            var brush = new SolidColorBrush(Color.FromArgb(alpha, 0, 0, 0));
+            Body.Background = brush;
+            FlareL.Fill = brush;
+        }
+        catch { }
+    }
+
     private void OnSettingsChanged(AppSettings s)
     {
+        ApplyOpacity();
         RebuildWidgets(s);
         if (!Pomodoro.Running && (int)Pomodoro.Total.TotalMinutes != s.PomodoroMinutes)
             Pomodoro.SetMinutes(s.PomodoroMinutes);
@@ -821,6 +840,7 @@ public partial class NotchWindow : Window
         {
             (_widgets[_tab] as MediaWidget)?.OnHidden();
             (_widgets[_tab] as SystemWidget)?.OnHidden();
+            MemoryOptimizer.ScheduleDelayedTrim(2000);
         }
     }
 

@@ -33,6 +33,8 @@ public sealed class AppSettings
     /// <summary>Huruf/angka untuk hotkey Ctrl+Alt+[Key].</summary>
     public string HotkeyKey { get; set; } = "N";
     public bool ShowNotificationPeek { get; set; } = true;
+    public bool NotificationSound { get; set; } = true;
+    public int NotchOpacityPercent { get; set; } = 100;
 
     // Deteksi panggilan (cocokkan dengan nama proses / entri registry mikrofon)
     public List<string> CallApps { get; set; } = new() { "WhatsApp", "Zoom", "Teams", "Discord", "Skype" };
@@ -49,6 +51,7 @@ public sealed class AppSettings
         WaterIntakeMl = Math.Max(0, WaterIntakeMl);
         MonitorIndex = Math.Max(-1, MonitorIndex);
         CollapseDelayMs = Math.Clamp(CollapseDelayMs, 100, 3000);
+        NotchOpacityPercent = Math.Clamp(NotchOpacityPercent, 70, 100);
 
         var key = (HotkeyKey ?? "").Trim().ToUpperInvariant();
         HotkeyKey = key.Length == 1 && char.IsLetterOrDigit(key[0]) ? key : "N";

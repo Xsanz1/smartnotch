@@ -22,10 +22,10 @@ public sealed class SettingsWindow : Window
 
     private readonly CheckBox _music = Chk("Musik & Lirik"), _call = Chk("Panggilan"), _shelf = Chk("File Shelf"),
         _notif = Chk("Pesan & Notifikasi"), _timer = Chk("Timer Fokus"), _water = Chk("Pengingat Minum"), _system = Chk("Pemantau Sistem");
-    private readonly TextBox _pomo = Box(), _waterInterval = Box(), _waterGoal = Box(), _collapse = Box(), _hotkey = Box(), _apps = Box(360);
+    private readonly TextBox _pomo = Box(), _waterInterval = Box(), _waterGoal = Box(), _collapse = Box(), _hotkey = Box(), _apps = Box(360), _opacityBox = Box(60);
     private readonly CheckBox _timerSound = Chk("Bunyi saat timer selesai"), _hideFs = Chk("Sembunyikan saat aplikasi fullscreen"),
-        _notifPeek = Chk("Tampilkan notifikasi Windows di notch"), _autoStartChk = Chk("Mulai bersama Windows"),
-        _updates = Chk("Periksa pembaruan saat aplikasi dibuka");
+        _notifPeek = Chk("Tampilkan notifikasi Windows di notch"), _notifSound = Chk("Bunyi bel saat ada pesan / notifikasi masuk"),
+        _autoStartChk = Chk("Mulai bersama Windows"), _updates = Chk("Periksa pembaruan saat aplikasi dibuka");
     private readonly List<RadioButton> _monitors = new();
 
     public static void ShowSingle()
@@ -59,8 +59,9 @@ public sealed class SettingsWindow : Window
         panel.Children.Add(Section("Pengingat minum",
             Row("Interval pengingat (menit)", _waterInterval), Row("Target harian (ml)", _waterGoal)));
         panel.Children.Add(Section("Monitor", BuildMonitorList()));
-        panel.Children.Add(Section("Perilaku",
-            _hideFs, _notifPeek,
+        panel.Children.Add(Section("Perilaku & Tampilan",
+            _hideFs, _notifPeek, _notifSound,
+            Row("Opasitas notch (%) [70 - 100]", _opacityBox),
             Row("Jeda menutup (ms)", _collapse),
             Row("Hotkey: Ctrl+Alt+", _hotkey)));
         panel.Children.Add(Section("Deteksi panggilan",
@@ -93,6 +94,8 @@ public sealed class SettingsWindow : Window
         _waterGoal.Text = _s.WaterGoalMl.ToString();
         _hideFs.IsChecked = _s.HideOnFullscreen;
         _notifPeek.IsChecked = _s.ShowNotificationPeek;
+        _notifSound.IsChecked = _s.NotificationSound;
+        _opacityBox.Text = _s.NotchOpacityPercent.ToString();
         _collapse.Text = _s.CollapseDelayMs.ToString();
         _hotkey.Text = _s.HotkeyKey;
         _apps.Text = string.Join(", ", _s.CallApps);
@@ -104,7 +107,8 @@ public sealed class SettingsWindow : Window
     private bool Save()
     {
         if (!TryInt(_pomo, "Durasi timer", out var pomo) || !TryInt(_waterInterval, "Interval minum", out var wi) ||
-            !TryInt(_waterGoal, "Target minum", out var wg) || !TryInt(_collapse, "Jeda menutup", out var cd))
+            !TryInt(_waterGoal, "Target minum", out var wg) || !TryInt(_collapse, "Jeda menutup", out var cd) ||
+            !TryInt(_opacityBox, "Opasitas notch", out var op))
             return false;
 
         var key = _hotkey.Text.Trim();
@@ -121,6 +125,8 @@ public sealed class SettingsWindow : Window
         _s.WaterIntervalMinutes = wi; _s.WaterGoalMl = wg;
         _s.HideOnFullscreen = _hideFs.IsChecked == true;
         _s.ShowNotificationPeek = _notifPeek.IsChecked == true;
+        _s.NotificationSound = _notifSound.IsChecked == true;
+        _s.NotchOpacityPercent = Math.Clamp(op, 70, 100);
         _s.CollapseDelayMs = cd;
         _s.HotkeyKey = key;
         _s.CallApps = _apps.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();

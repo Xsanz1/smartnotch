@@ -131,6 +131,12 @@ public sealed class NotifWidget : INotchWidget
 
             var timeBox = new StackPanel { Orientation = Orientation.Horizontal };
             timeBox.Children.Add(Ui.T(i.Time.ToString("HH:mm"), 10, false, Ui.Dim));
+
+            var replyToggle = Ui.T(" ↩ Balas", 10, true, Ui.B("#90FFFFFF"));
+            replyToggle.Margin = new Thickness(6, 0, 0, 0);
+            replyToggle.Cursor = System.Windows.Input.Cursors.Hand;
+            timeBox.Children.Add(replyToggle);
+
             timeBox.Children.Add(Ui.T(" ↗", 10, true, Ui.B("#70FFFFFF")));
 
             topRow.Children.Add(appLabel);
@@ -146,6 +152,70 @@ public sealed class NotifWidget : INotchWidget
                 bodyText.MaxHeight = 32;
                 content.Children.Add(bodyText);
             }
+
+            // Input Balas Cepat (Quick Reply)
+            var replyRow = new Grid { Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
+            replyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            replyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var replyInput = new TextBox
+            {
+                FontSize = 11,
+                Foreground = Brushes.White,
+                Background = Ui.B("#25FFFFFF"),
+                BorderBrush = Ui.B("#3AFFFFFF"),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 3, 8, 3),
+                VerticalAlignment = VerticalAlignment.Center,
+                CaretBrush = Brushes.White
+            };
+            replyInput.PreviewMouseLeftButtonDown += (_, e) => e.Handled = true;
+
+            var sendBtn = new Button
+            {
+                Content = "➤ Kirim",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                Background = isWa ? Ui.B("#FF25D366") : Ui.B("#FF7C5CFF"),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(8, 3, 8, 3),
+                Margin = new Thickness(6, 0, 0, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            void DoSend()
+            {
+                string text = replyInput.Text.Trim();
+                if (string.IsNullOrEmpty(text)) return;
+                try { Clipboard.SetText(text); } catch { }
+                AppLauncherService.FocusOrLaunch(i);
+                replyInput.Text = "";
+                replyRow.Visibility = Visibility.Collapsed;
+            }
+
+            sendBtn.Click += (_, e) => { e.Handled = true; DoSend(); };
+            replyInput.KeyDown += (_, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Enter)
+                {
+                    e.Handled = true;
+                    DoSend();
+                }
+            };
+
+            replyToggle.MouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                bool show = replyRow.Visibility != Visibility.Visible;
+                replyRow.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                if (show) replyInput.Focus();
+            };
+
+            replyRow.Children.Add(replyInput);
+            Grid.SetColumn(sendBtn, 1);
+            replyRow.Children.Add(sendBtn);
+            content.Children.Add(replyRow);
 
             card.Child = content;
             _list.Children.Add(card);

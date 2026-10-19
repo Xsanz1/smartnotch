@@ -47,13 +47,14 @@ public class SettingsTests : IDisposable
     [Fact]
     public void Normalize_ClampsOutOfRangeValues()
     {
-        var s = new AppSettings { PomodoroMinutes = 0, WaterIntervalMinutes = 9999, WaterGoalMl = 1, CollapseDelayMs = 5, HotkeyKey = "!!" };
+        var s = new AppSettings { PomodoroMinutes = 0, WaterIntervalMinutes = 9999, WaterGoalMl = 1, CollapseDelayMs = 5, HotkeyKey = "!!", NotchOpacityPercent = 40 };
         s.Normalize();
         Assert.Equal(1, s.PomodoroMinutes);
         Assert.Equal(480, s.WaterIntervalMinutes);
         Assert.Equal(250, s.WaterGoalMl);
         Assert.Equal(100, s.CollapseDelayMs);
         Assert.Equal("N", s.HotkeyKey);
+        Assert.Equal(70, s.NotchOpacityPercent);
     }
 
     [Fact]

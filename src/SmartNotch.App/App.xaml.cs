@@ -22,6 +22,7 @@ public partial class App : Application
         SettingsService.Init();
         HookGlobalErrorHandlers();
         Log.Info($"SmartNotch {UpdateService.Current} dimulai");
+        MemoryOptimizer.ScheduleDelayedTrim(3500);
 
         base.OnStartup(e);
         BuildTray();
