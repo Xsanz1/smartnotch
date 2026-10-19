@@ -22,6 +22,8 @@ Dokumentasi teknis menyeluruh (arsitektur, alur pembuatan dari awal sampai akhir
 | **WPF (DirectComposition)** | UI Framework | Dipilih dibandingkan Electron (terlalu boros RAM 300MB+) dan WinUI 3 (bug jendela transparan). WPF mendukung akselerasi GPU murni dan transparansi per-pixel sempurna (`WS_EX_TRANSPARENT`). |
 | **WinRT SMTC** | Now Playing Media | Membaca lagu aktif dari **SEMUA** pemutar (Spotify, Apple Music, YouTube di browser, VLC) tanpa perlu API Key / OAuth developer. |
 | **LRCLIB API** | Lirik Lagu Sinkron | Basis data lirik terbuka, gratis, dan menyediakan lirik sinkron bertanda waktu (*timestamped LRC*) tanpa biaya. |
+| **SQLite (`Microsoft.Data.Sqlite`)** | Pembaca Notifikasi Windows | Membaca database notifikasi lokal (`wpndatabase.db`) secara non-intrusif sehingga pesan WhatsApp & app lain terbaca tanpa batasan paket UWP/MSIX. |
+| **WASAPI & Core Audio API** | Audio & Deteksi Panggilan | Mengontrol volume hardware master dan mendeteksi sesi mikrofon aktif saat telepon berlangsung. |
 | **WinRT Bluetooth & Audio Endpoint** | Deteksi Headphone/TWS | Memantau koneksi perangkat nirkabel seketika saat AirPods / TWS terhubung ke laptop via `DeviceWatcher`. |
 | **Win32 `WM_DEVICECHANGE`** | Deteksi USB & Type-C | Event kernel level rendah untuk mendeteksi tancap/cabut Flashdisk (membaca huruf drive) dan HP dalam hitungan milidetik. |
 | **Inno Setup 6** | Compiler Installer | Bebas dari batasan sandbox MSIX yang ketat. Mengompresi seluruh runtime mandiri menjadi installer ringan (~45 MB). |
@@ -32,20 +34,25 @@ Dokumentasi teknis menyeluruh (arsitektur, alur pembuatan dari awal sampai akhir
 
 - **Idle Notch Minimalis (1:1 Nusa)**:
   - 🟢 **Circular Battery Ring**: Cincin indikator baterai melingkar di kiri jam dengan ikon petir `⚡` saat charging.
-  - 🕒 **Jam Digital Bersih**: Waktu minimalis di tengah.
+  - 🕒 **Jam Digital Bersih**: Waktu minimalis di tengah (otomatis beralih ke hitungan mundur saat timer fokus aktif).
   - ıll **Harmonic Equalizer Waveform**: 3-batang gelombang audio bersinkronisasi halus (*SineEase* 60 FPS) di kanan saat musik berputar.
-- **5 Widget Interaktif (Expanded Panel)**:
-  - 🎵 **Musik & Lirik Sinkron**: Artwork album 56px, ambient glow warna dinamis, slider knob, kontrol playback, dan lirik sinkron 3-baris vertikal via LRCLIB.
+  - 📞 **Dynamic Island Call Pill**: Saat panggilan aktif, notch memanjang menjadi kapsul hijau elegan dengan avatar kontak, nama penelepon, timer durasi, dan gelombang suara hijau.
+- **7 Widget Interaktif (Expanded Panel)**:
+  - 🎵 **Musik & Lirik Sinkron**: Artwork album 56px, ambient glow warna dinamis, slider volume hardware interaktif, slider progress, kontrol playback, dan lirik sinkron 3-baris vertikal via LRCLIB.
+  - 📞 **Kartu Panggilan (Call Card)**: Tampilan panggilan suara/video interaktif dengan tombol "Buka Aplikasi", tombol Mute/Unmute mic, gelombang suara, dan timer berjalan.
+  - 💬 **Pesan & Notifikasi**: Menampilkan daftar pesan WhatsApp masuk dengan badge kontak, waktu, teks pesan lengkap, dan tombol bersihkan.
   - 📁 **File Shelf**: Kotak drop berkas putus-putus berbasis *drag & drop*.
-  - ⏱ **Timer Fokus (Pomodoro)**: Pengatur waktu produktivitas 25 menit.
-  - 💧 **Pengingat Minum**: Timer hidrasi periodik.
-  - 📊 **Pemantau Sistem**: Grafik real-time beban CPU, RAM, dan internet speed.
-- **Deteksi Perangkat Keras Otomatis (Peek Banner)**:
+  - ⏱ **Timer Fokus (Pomodoro)**: Pengatur waktu produktivitas dengan preset (5, 15, 25, 50 mnt), durasi kustom, dan notifikasi audio saat selesai.
+  - 💧 **Pengingat Minum**: Timer hidrasi periodik yang menyimpan asupan harian otomatis di-reset saat ganti hari.
+  - 📊 **Pemantau Sistem**: Grafik real-time beban CPU, RAM, dan internet download/upload speed.
+- **Deteksi Perangkat Keras & Pesan Otomatis (Peek Banner)**:
+  - 💬 **Pesan WhatsApp Masuk**: Banner pop-up 2-baris menampilkan nama pengirim dan isi teks pesan secara instan.
+  - 📞 **Panggilan Masuk**: Notifikasi saat panggilan suara/video WhatsApp, Zoom, Teams, Discord, atau Skype berdering.
   - 🎧 **Bluetooth**: Notifikasi otomatis saat TWS, AirPods, headphone, speaker, atau gamepad terhubung/terputus.
   - 💾 **USB & Type-C**: Deteksi instan saat Flashdisk, smartphone HP, atau periferal dicolokkan/dicabut.
   - ⚡ **Pengisi Daya**: Notifikasi real-time saat charger dicolok atau dicabut.
 - **Transisi Geser Halus (*Slide & Fade*)**:
-  - Perpindahan antar halaman menggunakan animasi horizontal *Cubic Ease-Out* yang sangat lembut via tombol `‹` / `›`, scroll roda mouse, atau titik paginasi.
+  - Perpindahan antar halaman menggunakan animasi horizontal *Cubic Ease-Out* yang sangat lembut via tombol `‹` / `›`, scroll roda mouse, atau titik paginasi, dengan proteksi anti-blank pada scroll cepat.
 
 ---
 
@@ -65,16 +72,29 @@ Pastikan Anda telah memasang **.NET 10 SDK**. Jalankan skrip PowerShell berikut:
 .\build-installer.ps1
 ```
 
-### Menjalankan test
+### Menjalankan Unit Test
+
+Proyek dilengkapi dengan 25 test cases otomatis (xUnit):
 
 ```powershell
 dotnet test tests\SmartNotch.Tests
 ```
 
-## ⚙️ Pengaturan, Log & Pembaruan (v1.1)
+---
 
-- **Pengaturan**: klik kanan ikon tray → *Pengaturan...* (widget aktif, timer, minum, monitor, hotkey, aplikasi panggilan). Disimpan di `%LOCALAPPDATA%\SmartNotch\settings.json`.
-- **Multi-monitor**: pilih monitor tempat notch tampil; posisi menyesuaikan otomatis saat monitor berubah.
-- **Deteksi panggilan**: WhatsApp, Zoom, Teams, Discord, Skype (daftar bisa diubah).
-- **Log**: `%LOCALAPPDATA%\SmartNotch\logs` (disimpan 7 hari).
-- **Pembaruan**: cek rilis terbaru di GitHub saat aplikasi dibuka (hanya memberi tahu).
+## ⚙️ Pengaturan, Multi-Monitor & Log (v1.1)
+
+- **Jendela Pengaturan**: Akses via klik kanan ikon tray → *Pengaturan...*.
+  - Atur widget mana saja yang ingin ditampilkan di panel.
+  - Kustomisasi durasi timer fokus & bunyi alarm.
+  - Atur interval pengingat minum dan target harian (ml).
+  - Pilihan monitor tampilan notch (Multi-Monitor support).
+  - Atur hotkey global (default: `Ctrl + Alt + N`).
+  - Atur jeda otomatis menutup (*collapse delay*) saat kursor keluar.
+  - Daftar aplikasi panggilan yang dipantau (WhatsApp, Zoom, Teams, Discord, Skype).
+  - Pengaturan tersimpan otomatis di `%LOCALAPPDATA%\SmartNotch\settings.json`.
+- **Dukungan Multi-Monitor**: Penempatan notch berbasis piksel fisik DPI-aware, otomatis menyesuaikan saat monitor diputus/disambung.
+- **Sensor Fullscreen Cerdas**: Notch otomatis sembunyi saat game atau aplikasi layar penuh dibuka hanya pada monitor yang bersangkutan.
+- **Sistem Logging**: Log operasi dan error otomatis disimpan di `%LOCALAPPDATA%\SmartNotch\logs` dengan retensi otomatis 7 hari.
+- **Cek Pembaruan**: Otomatis memeriksa rilis terbaru di GitHub Releases saat aplikasi dijalankan.
+
