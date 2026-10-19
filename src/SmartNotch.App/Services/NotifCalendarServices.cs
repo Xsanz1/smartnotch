@@ -20,6 +20,7 @@ public sealed class NotificationService
     private readonly HashSet<uint> _seen = new();
     private readonly DispatcherTimer _t = new() { Interval = TimeSpan.FromSeconds(3) };
     private UserNotificationListener? _l;
+    private WpnNotificationReader? _wpn;
 
     public string Status { get; private set; } = "Memeriksa izin...";
     public List<NotifItem> Items { get; } = new();
@@ -35,8 +36,8 @@ public sealed class NotificationService
             var access = await _l.RequestAccessAsync();
             if (access != UserNotificationListenerAccessStatus.Allowed)
             {
-                Status = "Izin ditolak. Aktifkan di Pengaturan > Privasi > Notifikasi.";
-                Changed?.Invoke();
+                Log.Info($"UserNotificationListener: {access}, memakai pembaca database notifikasi");
+                StartFallback();
                 return;
             }
             Status = "Aktif";
@@ -44,11 +45,29 @@ public sealed class NotificationService
             _t.Tick += async (_, _) => await PollAsync(false);
             _t.Start();
         }
-        catch
+        catch (Exception ex)
         {
-            Status = "Tidak tersedia untuk aplikasi non-paket (butuh pengemasan MSIX).";
-            Changed?.Invoke();
+            Log.Warn("UserNotificationListener tidak tersedia, memakai pembaca database notifikasi", ex);
+            StartFallback();
         }
+    }
+
+    private void StartFallback()
+    {
+        if (_wpn != null) return;
+        _wpn = new WpnNotificationReader();
+        _wpn.Received += n => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Push(n));
+        _wpn.Start();
+        Status = "Aktif (membaca database notifikasi Windows)";
+        Changed?.Invoke();
+    }
+
+    private void Push(NotifItem item)
+    {
+        Items.Insert(0, item);
+        if (Items.Count > 20) Items.RemoveAt(Items.Count - 1);
+        Changed?.Invoke();
+        Received?.Invoke(item);
     }
 
     private async Task PollAsync(bool initial)
@@ -74,7 +93,7 @@ public sealed class NotificationService
                 Received?.Invoke(item);
             }
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("Polling notifikasi gagal", ex); }
     }
 }
 
@@ -127,7 +146,7 @@ public sealed class CalendarService
                 res.Add(new CalEvent(title, start));
             }
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("events.json tidak dapat dibaca", ex); }
         return res.OrderBy(e => e.Start).ToList();
     }
 

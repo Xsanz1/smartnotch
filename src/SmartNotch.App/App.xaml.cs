@@ -1,5 +1,6 @@
 using System.Windows;
 using Microsoft.Win32;
+using SmartNotch.App.Services;
 using Forms = System.Windows.Forms;
 using Drawing = System.Drawing;
 
@@ -10,22 +11,56 @@ public partial class App : Application
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private Mutex? _mutex;
     private Forms.NotifyIcon? _tray;
+    private string? _updateUrl;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         _mutex = new Mutex(true, "SmartNotch.SingleInstance", out bool created);
         if (!created) { Shutdown(); return; }
 
+        Log.Cleanup();
+        SettingsService.Init();
+        HookGlobalErrorHandlers();
+        Log.Info($"SmartNotch {UpdateService.Current} dimulai");
+
         base.OnStartup(e);
         BuildTray();
+        if (SettingsService.Current.CheckUpdates) _ = CheckUpdateAsync();
+    }
+
+    private void HookGlobalErrorHandlers()
+    {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Log.Error("Exception UI tidak tertangani", args.Exception);
+            args.Handled = true; // jangan matikan notch karena error satu widget
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            Log.Error($"Exception fatal (terminating={args.IsTerminating})", args.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            Log.Error("Task exception tidak teramati", args.Exception);
+            args.SetObserved();
+        };
+    }
+
+    private async Task CheckUpdateAsync()
+    {
+        var info = await UpdateService.CheckAsync();
+        if (info == null || _tray == null) return;
+        _updateUrl = info.Url;
+        _tray.ShowBalloonTip(8000, "SmartNotch", $"Versi {info.Tag} tersedia. Klik untuk membuka halaman unduhan.", Forms.ToolTipIcon.Info);
     }
 
     private void BuildTray()
     {
+        var settings = new Forms.ToolStripMenuItem("Pengaturan...");
+        settings.Click += (_, _) => SettingsWindow.ShowSingle();
+
         var autostart = new Forms.ToolStripMenuItem("Mulai bersama Windows") { Checked = IsAutostart(), CheckOnClick = true };
         autostart.CheckedChanged += (_, _) => SetAutostart(autostart.Checked);
 
-        var toggle = new Forms.ToolStripMenuItem("Tampilkan / Sembunyikan  (Ctrl+Alt+N)");
+        var toggle = new Forms.ToolStripMenuItem("Tampilkan / Sembunyikan");
         toggle.Click += (_, _) => NotchWindow.Instance?.ToggleVisible();
 
         var openFolder = new Forms.ToolStripMenuItem("Buka folder data");
@@ -39,7 +74,12 @@ public partial class App : Application
         quit.Click += (_, _) => Shutdown();
 
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.AddRange(new Forms.ToolStripItem[] { toggle, autostart, openFolder, new Forms.ToolStripSeparator(), quit });
+        menu.Items.AddRange(new Forms.ToolStripItem[] { toggle, settings, autostart, openFolder, new Forms.ToolStripSeparator(), quit });
+        menu.Opening += (_, _) =>
+        {
+            toggle.Text = $"Tampilkan / Sembunyikan  (Ctrl+Alt+{SettingsService.Current.HotkeyKey})";
+            autostart.Checked = IsAutostart();
+        };
 
         _tray = new Forms.NotifyIcon
         {
@@ -49,15 +89,21 @@ public partial class App : Application
             ContextMenuStrip = menu
         };
         _tray.DoubleClick += (_, _) => NotchWindow.Instance?.ToggleVisible();
+        _tray.BalloonTipClicked += (_, _) =>
+        {
+            if (_updateUrl == null) return;
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_updateUrl) { UseShellExecute = true }); }
+            catch (Exception ex) { Log.Warn("Gagal membuka halaman pembaruan", ex); }
+        };
     }
 
-    private static bool IsAutostart()
+    internal static bool IsAutostart()
     {
         using var k = Registry.CurrentUser.OpenSubKey(RunKey);
         return k?.GetValue("SmartNotch") != null;
     }
 
-    private static void SetAutostart(bool on)
+    internal static void SetAutostart(bool on)
     {
         using var k = Registry.CurrentUser.OpenSubKey(RunKey, true);
         if (k == null) return;
@@ -69,6 +115,7 @@ public partial class App : Application
     {
         if (_tray != null) { _tray.Visible = false; _tray.Dispose(); }
         _mutex?.Dispose();
+        Log.Info("SmartNotch berhenti");
         base.OnExit(e);
     }
 }

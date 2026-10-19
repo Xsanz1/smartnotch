@@ -2,7 +2,7 @@
 ; Cara pakai: install Inno Setup (https://jrsoftware.org/isdl.php), lalu jalankan build-installer.ps1
 
 #define AppName "SmartNotch"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define AppExe "SmartNotch.exe"
 
 [Setup]

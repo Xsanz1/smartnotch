@@ -51,7 +51,7 @@ Dokumentasi teknis menyeluruh (arsitektur, alur pembuatan dari awal sampai akhir
 
 ## 🚀 Unduh & Pasang
 
-- **Installer Setup**: [SmartNotch-Setup-1.0.0.exe](dist/SmartNotch-Setup-1.0.0.exe)
+- **Installer Setup**: [SmartNotch-Setup-1.1.0.exe](dist/SmartNotch-Setup-1.1.0.exe)
 - **Portable Langsung Jalan**: [SmartNotch.exe](dist/publish/SmartNotch.exe)
 
 ---
@@ -64,3 +64,17 @@ Pastikan Anda telah memasang **.NET 10 SDK**. Jalankan skrip PowerShell berikut:
 # Build dan compile installer setup otomatis
 .\build-installer.ps1
 ```
+
+### Menjalankan test
+
+```powershell
+dotnet test tests\SmartNotch.Tests
+```
+
+## ⚙️ Pengaturan, Log & Pembaruan (v1.1)
+
+- **Pengaturan**: klik kanan ikon tray → *Pengaturan...* (widget aktif, timer, minum, monitor, hotkey, aplikasi panggilan). Disimpan di `%LOCALAPPDATA%\SmartNotch\settings.json`.
+- **Multi-monitor**: pilih monitor tempat notch tampil; posisi menyesuaikan otomatis saat monitor berubah.
+- **Deteksi panggilan**: WhatsApp, Zoom, Teams, Discord, Skype (daftar bisa diubah).
+- **Log**: `%LOCALAPPDATA%\SmartNotch\logs` (disimpan 7 hari).
+- **Pembaruan**: cek rilis terbaru di GitHub saat aplikasi dibuka (hanya memberi tahu).

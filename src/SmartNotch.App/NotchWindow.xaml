@@ -114,6 +114,11 @@
                     <TextBlock x:Name="PeekText" Margin="14,0,14,0" Foreground="White" FontSize="12" FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" HorizontalAlignment="Center"
                                FontFamily="Segoe UI Variable Display, Segoe UI"/>
+                    <!-- Isi pesan (maks 2 baris) untuk preview pesan masuk -->
+                    <TextBlock x:Name="PeekBody" Margin="14,29,14,0" Foreground="#D0FFFFFF" FontSize="11"
+                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="30"
+                               VerticalAlignment="Top" HorizontalAlignment="Left" Visibility="Collapsed"
+                               FontFamily="Segoe UI Variable Display, Segoe UI"/>
                 </Grid>
 
                 <!-- 3. EXPANDED LAYER (1:1 Nusa: Content + Nav Chevron Kiri/Kanan + Dots Paginasi) -->

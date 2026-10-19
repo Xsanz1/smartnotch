@@ -22,6 +22,8 @@ public partial class NotchWindow : Window
     private static readonly Size IdleSize = new(200, 32);         // Idle: [🟢 Ring] + [HH:mm Clock] + [Equalizer Wave / 🔴 Ring]
     private static readonly Size IdleCallSize = new(240, 32);     // Idle saat telepon aktif (1:1 iOS Dynamic Island Phone Call Pill)
     private static readonly Size PeekSize = new(340, 40);         // Live activity peek
+    private static readonly Size MessagePeekSize = new(400, 70);  // Preview pesan masuk (pengirim + isi 2 baris)
+    private Size _peekSize = PeekSize;
     private static readonly Size ExpSize = new(640, 190);         // Expanded panel penuh sesuai rancangan (tidak terpotong)
     private const double HitMargin = 12;
     private const int CollapseDelayMs = 400;
@@ -57,6 +59,12 @@ public partial class NotchWindow : Window
     private ShelfWidget _shelf = null!;
     private MediaWidget _mediaWidget = null!;
     private CallWidget _callWidget = null!;
+    private TimerWidget _timerWidget = null!;
+    private WaterWidget _waterWidget = null!;
+    private SystemWidget _systemWidget = null!;
+    private NotifWidget _notifWidget = null!;
+    private System.Drawing.Rectangle _screenBounds;
+    private bool _positioning;
     private int _tab = -1;
     private readonly List<ScaleTransform> _idleBars = new();
     private readonly List<DoubleAnimationUsingKeyFrames> _idleAnimations = new();
@@ -79,11 +87,15 @@ public partial class NotchWindow : Window
             e.Handled = true;
         };
 
+        SettingsService.Changed += OnSettingsChanged;
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
         Loaded += OnLoaded;
         Closed += (_, _) =>
         {
             Usb.Stop();
             Win32.UnregisterHotKey(_hwnd, HotkeyId);
+            SettingsService.Changed -= OnSettingsChanged;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
         };
         _poll.Tick += (_, _) => Tick();
         _peekTimer.Tick += (_, _) =>
@@ -219,12 +231,11 @@ public partial class NotchWindow : Window
         _mediaWidget = new MediaWidget(Media, new LyricsService(), Audio);
         _shelf = new ShelfWidget();
 
-        _widgets.Add(_mediaWidget);                       // 0. Musik + Lirik (Default)
-        _widgets.Add(_callWidget);                        // 1. WhatsApp Call Card
-        _widgets.Add(_shelf);                             // 2. Shelf (Simpan File)
-        _widgets.Add(new TimerWidget(Pomodoro));         // 2. Timer Fokus
-        _widgets.Add(new WaterWidget(Water));            // 3. Pengingat Minum
-        _widgets.Add(new SystemWidget(Stats, Battery));  // 4. Sistem
+        _timerWidget = new TimerWidget(Pomodoro);
+        _waterWidget = new WaterWidget(Water);
+        _systemWidget = new SystemWidget(Stats, Battery);
+        _notifWidget = new NotifWidget(Notif);
+        Pomodoro.SetMinutes(SettingsService.Current.PomodoroMinutes);
 
         NavPrevBtn.Click += (_, _) => PrevTab();
         NavNextBtn.Click += (_, _) => NextTab();
@@ -236,7 +247,7 @@ public partial class NotchWindow : Window
             if (e.Delta < 0) NextTab(); else PrevTab();
         };
 
-        SelectTab(0);
+        RebuildWidgets(SettingsService.Current);
     }
 
     public void NextTab()
@@ -273,6 +284,7 @@ public partial class NotchWindow : Window
         if (dir == 0 || oldWidget == null)
         {
             ContentContainer.Children.Clear();
+            newView.BeginAnimation(OpacityProperty, null);
             newView.Opacity = 1.0;
             newView.RenderTransform = null;
             ContentContainer.Children.Add(newView);
@@ -305,6 +317,11 @@ public partial class NotchWindow : Window
         var fadeIn = new DoubleAnimation(0.0, 1.0, dur) { EasingFunction = ease };
         fadeIn.Completed += (_, _) =>
         {
+            // Hanya transisi terakhir yang boleh membersihkan; transisi lama (mis. scroll cepat)
+            // tidak boleh membuang view yang sekarang sedang ditampilkan.
+            var current = _tab >= 0 && _tab < _widgets.Count ? _widgets[_tab].View : null;
+            if (current != newView) return;
+
             for (int k = ContentContainer.Children.Count - 1; k >= 0; k--)
             {
                 if (ContentContainer.Children[k] != newView)
@@ -359,17 +376,21 @@ public partial class NotchWindow : Window
         Media.TrackChanged += () =>
         {
             ShowPeek($"{Media.Title}  •  {Media.Artist}", Media.Art);
-            if (_state == NotchState.Expanded) SelectTab(0);
+            if (_state == NotchState.Expanded) SelectTab(MediaIndex);
         };
         Battery.PlugChanged += plugged =>
             ShowPeek(plugged ? $"⚡ Pengisi daya terhubung  •  {Battery.Percent}%" : $"🔋 Pengisi daya dicabut  •  Sisa {Battery.Percent}%", null, 4000);
         Battery.LowBattery += p => ShowPeek($"🔋 Baterai lemah  •  {p}%", null, 5000);
         Pomodoro.Tick += UpdateIdle;
+        Pomodoro.Finished += () => { if (SettingsService.Current.TimerSound) System.Media.SystemSounds.Exclamation.Play(); };
         Pomodoro.Finished += () => ShowPeek("⏱ Timer fokus selesai", null, 6000);
         Water.NeedWater += () => ShowPeek("💧 Waktunya minum air putih!", null, 5000);
         Notif.Received += n =>
         {
             WhatsApp.OnNotificationReceived(n);
+            if (!SettingsService.Current.ShowNotificationPeek) return;
+            if (WhatsApp.CurrentCall.State == WhatsAppCallState.Incoming) return; // sudah ditangani peek panggilan
+            if (ShowMessagePeek(n)) return;
             ShowPeek($"🔔 {n.App}: {n.Title}", null, 4000);
         };
         Calendar.Reminder += (e, mins) => ShowPeek($"📅 {e.Title}  •  {(mins <= 0 ? "sekarang" : mins + " mnt lagi")}", null, 6000);
@@ -393,7 +414,7 @@ public partial class NotchWindow : Window
             if (info.State == WhatsAppCallState.Incoming)
             {
                 string icon = info.IsVideo ? "📹" : "📞";
-                ShowPeek($"{icon} {info.CallerName}  •  Panggilan WhatsApp Masuk...", null, 6000);
+                ShowPeek($"{icon} {info.CallerName}  •  Panggilan {WhatsApp.ActiveApp} Masuk...", null, 6000);
             }
             else if (info.State == WhatsAppCallState.Active)
             {
@@ -426,7 +447,7 @@ public partial class NotchWindow : Window
                 SetState(NotchState.Idle);
             }
             string durStr = duration.Hours > 0 ? $"{duration.Hours:00}:{duration.Minutes:00}:{duration.Seconds:00}" : $"{duration.Minutes:00}:{duration.Seconds:00}";
-            ShowPeek($"🔴 Panggilan WhatsApp Berakhir  •  {durStr}", null, 3000);
+            ShowPeek($"🔴 Panggilan {WhatsApp.ActiveApp} Berakhir  •  {durStr}", null, 3000);
         };
 
         _ = Media.InitAsync();
@@ -440,12 +461,12 @@ public partial class NotchWindow : Window
         var ex = Win32.GetWindowLong(_hwnd, Win32.GWL_EXSTYLE);
         Win32.SetWindowLong(_hwnd, Win32.GWL_EXSTYLE, ex | Win32.WS_EX_TOOLWINDOW | Win32.WS_EX_NOACTIVATE);
 
-        Left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
-        Top = 0;
 
         // Hotkey global Ctrl+Alt+N
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
-        Win32.RegisterHotKey(_hwnd, HotkeyId, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_NOREPEAT, 'N');
+        RegisterHotkey(SettingsService.Current.HotkeyKey);
+        PositionOnScreen();
+        Dispatcher.BeginInvoke(PositionOnScreen, DispatcherPriority.Loaded);
 
         SetClickThrough(true);
         UpdateIdle();
@@ -480,7 +501,7 @@ public partial class NotchWindow : Window
 
     private void CheckFullscreen()
     {
-        bool fs = IsForegroundFullscreen();
+        bool fs = SettingsService.Current.HideOnFullscreen && IsForegroundFullscreen();
         if (fs == _hiddenByFullscreen) return;
         _hiddenByFullscreen = fs;
         ApplyVisibility();
@@ -504,7 +525,9 @@ public partial class NotchWindow : Window
             if (Win32.IsZoomed(h)) return false;
 
             if (!Win32.GetWindowRect(h, out var r)) return false;
-            var b = System.Windows.Forms.Screen.FromHandle(h).Bounds;
+            var scr = System.Windows.Forms.Screen.FromHandle(h);
+            if (scr.DeviceName != TargetScreen.DeviceName) return false;
+            var b = scr.Bounds;
             return r.Left <= b.Left && r.Top <= b.Top && r.Right >= b.Right && r.Bottom >= b.Bottom;
         }
         catch { return false; }
@@ -521,11 +544,100 @@ public partial class NotchWindow : Window
         else if (!IsVisible) Show();
     }
 
+    // ---------- Settings, Monitor & Hotkey ----------
+    private int MediaIndex => _widgets.IndexOf(_mediaWidget);
+
+    private System.Windows.Forms.Screen TargetScreen
+    {
+        get
+        {
+            var all = System.Windows.Forms.Screen.AllScreens;
+            int i = SettingsService.Current.MonitorIndex;
+            return i >= 0 && i < all.Length ? all[i] : System.Windows.Forms.Screen.PrimaryScreen ?? all[0];
+        }
+    }
+
+    /// <summary>Letakkan notch di tengah-atas monitor target (piksel fisik, aman untuk DPI berbeda antar monitor).</summary>
+    private void PositionOnScreen()
+    {
+        if (_hwnd == IntPtr.Zero || _positioning) return;
+        _positioning = true;
+        try
+        {
+            var b = TargetScreen.Bounds;
+            _screenBounds = b;
+            const uint flags = Win32.SWP_NOSIZE | Win32.SWP_NOZORDER | Win32.SWP_NOACTIVATE;
+
+            // Pindah dulu agar DPI monitor target ikut berlaku, lalu pusatkan memakai lebar piksel sebenarnya
+            Win32.SetWindowPos(_hwnd, IntPtr.Zero, b.Left + b.Width / 2 - 10, b.Top, 0, 0, flags);
+            var dpi = VisualTreeHelper.GetDpi(this);
+            int w = (int)Math.Round(Width * dpi.DpiScaleX);
+            Win32.SetWindowPos(_hwnd, IntPtr.Zero, b.Left + (b.Width - w) / 2, b.Top, 0, 0, flags);
+        }
+        catch (Exception ex) { Log.Warn("Gagal memosisikan notch", ex); }
+        finally { _positioning = false; }
+    }
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        PositionOnScreen();
+    }
+
+    private void OnDisplayChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(PositionOnScreen, DispatcherPriority.Background);
+
+    private void RegisterHotkey(string key)
+    {
+        if (_hwnd == IntPtr.Zero || string.IsNullOrEmpty(key)) return;
+        Win32.UnregisterHotKey(_hwnd, HotkeyId);
+        if (!Win32.RegisterHotKey(_hwnd, HotkeyId, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_NOREPEAT, key[0]))
+            Log.Warn($"Hotkey Ctrl+Alt+{key} gagal didaftarkan (kemungkinan dipakai aplikasi lain)");
+    }
+
+    private void RebuildWidgets(AppSettings s)
+    {
+        var prev = _tab >= 0 && _tab < _widgets.Count ? _widgets[_tab] : null;
+
+        _widgets.Clear();
+        if (s.ShowMusic) _widgets.Add(_mediaWidget);
+        if (s.ShowCall) _widgets.Add(_callWidget);
+        if (s.ShowShelf) _widgets.Add(_shelf);
+        if (s.ShowNotif) _widgets.Add(_notifWidget);
+        if (s.ShowTimer) _widgets.Add(_timerWidget);
+        if (s.ShowWater) _widgets.Add(_waterWidget);
+        if (s.ShowSystem) _widgets.Add(_systemWidget);
+        if (_widgets.Count == 0) _widgets.Add(_mediaWidget);
+
+        int idx = prev != null ? _widgets.IndexOf(prev) : -1;
+        if (prev != null && idx < 0)
+        {
+            (prev as MediaWidget)?.OnHidden();
+            (prev as SystemWidget)?.OnHidden();
+        }
+
+        _tab = -1;
+        ContentContainer.Children.Clear();
+        SelectTab(idx >= 0 ? idx : 0);
+    }
+
+    private void OnSettingsChanged(AppSettings s)
+    {
+        RebuildWidgets(s);
+        if (!Pomodoro.Running && (int)Pomodoro.Total.TotalMinutes != s.PomodoroMinutes)
+            Pomodoro.SetMinutes(s.PomodoroMinutes);
+        Water.ApplySettings(s);
+        RegisterHotkey(s.HotkeyKey);
+        PositionOnScreen();
+        CheckFullscreen();
+        UpdateIdle();
+    }
+
     // ---------- Hover state machine ----------
     private Size CurrentSize => _state switch
     {
         NotchState.Expanded => ExpSize,
-        NotchState.Peek => PeekSize,
+        NotchState.Peek => _peekSize,
         _ => (WhatsApp != null && WhatsApp.IsInCall ? IdleCallSize : IdleSize)
     };
 
@@ -533,13 +645,13 @@ public partial class NotchWindow : Window
     {
         if (IsHidden || !Win32.GetCursorPos(out var p)) return;
 
-        var src = PresentationSource.FromVisual(this);
-        var m = src?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
-        var cursor = m.Transform(new Point(p.X, p.Y));
-
+        // Hit-test dalam piksel fisik terhadap monitor target
+        double scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        var b = _screenBounds;
         var size = CurrentSize;
-        double cx = SystemParameters.PrimaryScreenWidth / 2;
-        bool inside = cursor.Y <= size.Height + HitMargin && Math.Abs(cursor.X - cx) <= size.Width / 2 + HitMargin;
+        double cx = b.Left + b.Width / 2.0;
+        bool inside = p.Y >= b.Top && p.Y <= b.Top + (size.Height + HitMargin) * scale
+                      && Math.Abs(p.X - cx) <= (size.Width / 2 + HitMargin) * scale;
 
         if (inside || Pinned)
         {
@@ -547,7 +659,7 @@ public partial class NotchWindow : Window
             if (_state != NotchState.Expanded && inside) { _peekTimer.Stop(); SetState(NotchState.Expanded); }
         }
         else if (_state == NotchState.Expanded &&
-                 (DateTime.UtcNow - _lastInside).TotalMilliseconds > CollapseDelayMs)
+                 (DateTime.UtcNow - _lastInside).TotalMilliseconds > SettingsService.Current.CollapseDelayMs)
         {
             SetState(NotchState.Idle);
         }
@@ -556,6 +668,10 @@ public partial class NotchWindow : Window
     public void ShowPeek(string text, ImageSource? icon = null, int ms = 3000)
     {
         if (IsHidden || _state == NotchState.Expanded) return;
+        _peekSize = PeekSize;
+        PeekLayer.Height = 40;
+        PeekBody.Visibility = Visibility.Collapsed;
+        PeekText.VerticalAlignment = VerticalAlignment.Center;
         PeekText.Text = text;
         PeekArt.Source = icon;
         PeekArtBox.Visibility = icon == null ? Visibility.Collapsed : Visibility.Visible;
@@ -565,6 +681,34 @@ public partial class NotchWindow : Window
         _peekTimer.Stop();
         _peekTimer.Interval = TimeSpan.FromMilliseconds(ms);
         _peekTimer.Start();
+    }
+
+    /// <summary>Tampilkan pesan masuk (pengirim + isi). Mengembalikan false jika notifikasi tidak punya isi.</summary>
+    private bool ShowMessagePeek(NotifItem n)
+    {
+        if (string.IsNullOrWhiteSpace(n.Body)) return false;
+        if (IsHidden || _state == NotchState.Expanded) return true;
+
+        bool wa = n.App.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase);
+        _peekSize = MessagePeekSize;
+        PeekLayer.Height = MessagePeekSize.Height;
+        PeekArtBox.Visibility = Visibility.Collapsed;
+        PeekArt.Source = null;
+
+        PeekText.Text = $"{(wa ? "💬" : "🔔")} {(wa ? n.Title : n.App + " • " + n.Title)}";
+        PeekText.Margin = new Thickness(14, 10, 14, 0);
+        PeekText.HorizontalAlignment = HorizontalAlignment.Left;
+        PeekText.VerticalAlignment = VerticalAlignment.Top;
+
+        PeekBody.Text = n.Body;
+        PeekBody.Margin = new Thickness(14, 30, 14, 0);
+        PeekBody.Visibility = Visibility.Visible;
+
+        SetState(NotchState.Peek);
+        _peekTimer.Stop();
+        _peekTimer.Interval = TimeSpan.FromMilliseconds(6000);
+        _peekTimer.Start();
+        return true;
     }
 
     private void SetState(NotchState s)
@@ -594,7 +738,7 @@ public partial class NotchWindow : Window
 
         if (exp)
         {
-            if (Media.HasSession && Media.IsPlaying && _tab != 0) SelectTab(0);
+            if (Media.HasSession && Media.IsPlaying && MediaIndex >= 0 && _tab != MediaIndex) SelectTab(MediaIndex);
             _widgets[_tab].OnShown();
         }
         else if (old == NotchState.Expanded)

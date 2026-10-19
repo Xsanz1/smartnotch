@@ -147,28 +147,44 @@ public sealed class PomodoroService
 
 public sealed class WaterReminderService
 {
-    private readonly DispatcherTimer _reminderTimer = new() { Interval = TimeSpan.FromMinutes(45) };
-    public int IntakeMl { get; private set; } = 500;
-    public int GoalMl { get; private set; } = 2000;
+    private readonly DispatcherTimer _reminderTimer = new();
+    private WaterTracker _tracker;
+
+    public int IntakeMl => _tracker.IntakeMl;
+    public int GoalMl => _tracker.GoalMl;
 
     public event Action? Changed;
     public event Action? NeedWater;
 
     public WaterReminderService()
     {
-        _reminderTimer.Tick += (_, _) => NeedWater?.Invoke();
+        _tracker = new WaterTracker(SettingsService.Current);
+        _reminderTimer.Interval = TimeSpan.FromMinutes(SettingsService.Current.WaterIntervalMinutes);
+        _reminderTimer.Tick += (_, _) => { _tracker.RolloverIfNewDay(DateTime.Now); NeedWater?.Invoke(); };
         _reminderTimer.Start();
+    }
+
+    /// <summary>Terapkan ulang interval, target, dan asupan dari pengaturan.</summary>
+    public void ApplySettings(AppSettings s)
+    {
+        _tracker = new WaterTracker(s);
+        _reminderTimer.Interval = TimeSpan.FromMinutes(s.WaterIntervalMinutes);
+        _reminderTimer.Stop();
+        _reminderTimer.Start();
+        Changed?.Invoke();
     }
 
     public void Drink(int ml = 250)
     {
-        IntakeMl += ml;
+        _tracker.Drink(ml);
+        SettingsService.SaveCurrent();
         Changed?.Invoke();
     }
 
     public void Reset()
     {
-        IntakeMl = 0;
+        _tracker.Reset();
+        SettingsService.SaveCurrent();
         Changed?.Invoke();
     }
 }

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Logika murni di-link langsung (tanpa WPF) agar test ringan dan bisa jalan di mana saja -->
+    <Compile Include="..\..\src\SmartNotch.App\Services\Log.cs" Link="Linked\Log.cs" />
+    <Compile Include="..\..\src\SmartNotch.App\Services\SettingsService.cs" Link="Linked\SettingsService.cs" />
+    <Compile Include="..\..\src\SmartNotch.App\Services\WaterTracker.cs" Link="Linked\WaterTracker.cs" />
+    <Compile Include="..\..\src\SmartNotch.App\Services\CallAppMatcher.cs" Link="Linked\CallAppMatcher.cs" />
+    <Compile Include="..\..\src\SmartNotch.App\Services\UpdateService.cs" Link="Linked\UpdateService.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2" />
+  </ItemGroup>
+
+</Project>

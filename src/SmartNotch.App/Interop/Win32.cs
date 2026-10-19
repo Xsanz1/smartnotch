@@ -18,6 +18,9 @@ internal static class Win32
     [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr h, int id, uint mod, uint vk);
     [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr h, int id);
 
+    public const uint SWP_NOSIZE = 0x1, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct SYSTEM_POWER_STATUS
     {

@@ -12,7 +12,9 @@
     <AssemblyName>SmartNotch</AssemblyName>
     <Product>SmartNotch</Product>
     <Company>SmartNotch</Company>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
+    <!-- WFO0003: manifest PerMonitorV2 tetap dipakai karena WPF membutuhkannya untuk penempatan multi-monitor yang akurat -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
     <Description>Notch / Dynamic Island untuk Windows</Description>
     <!-- Publish: satu file .exe, tidak perlu .NET terpasang di PC pengguna -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -22,6 +24,12 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    <!-- Versi native SQLite yang sudah ditambal (transitif bawaan 2.1.10 punya kerentanan) -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.11" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Hindari ambiguitas nama (Application, Button, dll.) antara WPF dan WinForms -->

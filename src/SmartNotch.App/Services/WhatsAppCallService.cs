@@ -87,12 +87,21 @@ public sealed class WhatsAppCallService
     public event Action<TimeSpan>? CallEnded;
     public event Action<bool>? MicMuteChanged;
 
+    private string _activeApp = "WhatsApp";
+    public string ActiveApp => CallAppMatcher.Display(_activeApp);
+    private static IReadOnlyList<string> Apps => SettingsService.Current.CallApps;
+
     public WhatsAppCallService()
     {
         InitMicEndpoint();
         _pollTimer.Tick += (_, _) => Poll();
         _pollTimer.Start();
     }
+
+    private static bool IsDefaultCaller(string name) =>
+        string.IsNullOrWhiteSpace(name) || name.StartsWith("Panggilan ", StringComparison.OrdinalIgnoreCase);
+
+    private static string DefaultCallerFor(string app) => $"Panggilan {CallAppMatcher.Display(app)}";
 
     private void InitMicEndpoint()
     {
@@ -165,12 +174,18 @@ public sealed class WhatsAppCallService
 
     private void Poll()
     {
-        bool isMicActive = CheckWhatsAppMicActive();
-        string? windowTitle = FindWhatsAppCallWindowTitle();
+        string? detected = DetectCallApp();
+        bool isMicActive = detected != null;
+        if (detected != null) _activeApp = detected;
+        string? windowTitle = detected != null ? FindCallWindowTitle(detected) : null;
 
-        if (!string.IsNullOrWhiteSpace(windowTitle) && CurrentCall.CallerName == "Panggilan WhatsApp")
+        if (detected != null && IsDefaultCaller(CurrentCall.CallerName))
+            CurrentCall.CallerName = DefaultCallerFor(detected);
+
+        if (!string.IsNullOrWhiteSpace(windowTitle) && IsDefaultCaller(CurrentCall.CallerName))
         {
-            CurrentCall.CallerName = CleanCallerTitle(windowTitle);
+            var cleaned = CleanCallerTitle(windowTitle);
+            if (!string.IsNullOrWhiteSpace(cleaned)) CurrentCall.CallerName = cleaned;
         }
 
         // State Machine Transisi Panggilan
@@ -224,7 +239,7 @@ public sealed class WhatsAppCallService
     /// <summary>
     /// Memeriksa apakah WhatsApp saat ini sedang aktif menangkap mikrofon (WASAPI / Registry).
     /// </summary>
-    private bool CheckWhatsAppMicActive()
+    private string? DetectCallApp()
     {
         // 1. Periksa Registry CapabilityAccessManager (Kernel-level Windows Mic Tracker)
         try
@@ -235,7 +250,8 @@ public sealed class WhatsAppCallService
                 // Cek Packaged apps (WhatsApp Desktop UWP / WinUI3)
                 foreach (var sub in baseKey.GetSubKeyNames())
                 {
-                    if (sub.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                    var app = CallAppMatcher.Match(sub, Apps);
+                    if (app != null)
                     {
                         using var k = baseKey.OpenSubKey(sub);
                         if (k != null)
@@ -249,7 +265,7 @@ public sealed class WhatsAppCallService
                             if (start > 0 && (stop == 0 || start > stop))
                             {
                                 // Pastikan proses WhatsApp masih berjalan
-                                if (IsWhatsAppProcessRunning()) return true;
+                                if (IsAppProcessRunning(app)) return app;
                             }
                         }
                     }
@@ -261,14 +277,15 @@ public sealed class WhatsAppCallService
                 {
                     foreach (var sub in nonPackaged.GetSubKeyNames())
                     {
-                        if (sub.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                        var app = CallAppMatcher.Match(sub, Apps);
+                        if (app != null)
                         {
                             using var k = nonPackaged.OpenSubKey(sub);
                             if (k != null)
                             {
                                 long start = Convert.ToInt64(k.GetValue("LastUsedTimeStart") ?? 0);
                                 long stop = Convert.ToInt64(k.GetValue("LastUsedTimeStop") ?? 0);
-                                if (start > 0 && (stop == 0 || start > stop)) return true;
+                                if (start > 0 && (stop == 0 || start > stop)) return app;
                             }
                         }
                     }
@@ -304,9 +321,10 @@ public sealed class WhatsAppCallService
                                             try
                                             {
                                                 var proc = Process.GetProcessById((int)pid);
-                                                if (proc.ProcessName.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                                                var app = CallAppMatcher.Match(proc.ProcessName, Apps);
+                                                if (app != null)
                                                 {
-                                                    return true;
+                                                    return app;
                                                 }
                                             }
                                             catch { }
@@ -321,23 +339,25 @@ public sealed class WhatsAppCallService
         }
         catch { }
 
-        return false;
+        return null;
     }
 
-    private static bool IsWhatsAppProcessRunning()
+    private static bool IsAppProcessRunning(string app)
     {
         try
         {
-            var p1 = Process.GetProcessesByName("WhatsApp");
-            if (p1.Length > 0) return true;
-            var p2 = Process.GetProcessesByName("WhatsApp.Root");
-            if (p2.Length > 0) return true;
+            foreach (var p in Process.GetProcesses())
+            {
+                try { if (p.ProcessName.Contains(app, StringComparison.OrdinalIgnoreCase)) return true; }
+                catch { }
+                finally { p.Dispose(); }
+            }
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("Gagal membaca daftar proses", ex); }
         return false;
     }
 
-    private string? FindWhatsAppCallWindowTitle()
+    private string? FindCallWindowTitle(string app)
     {
         string? result = null;
         try
@@ -349,7 +369,7 @@ public sealed class WhatsAppCallService
                 try
                 {
                     var p = Process.GetProcessById((int)pid);
-                    if (p.ProcessName.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                    if (p.ProcessName.Contains(app, StringComparison.OrdinalIgnoreCase))
                     {
                         var sb = new StringBuilder(256);
                         Win32.GetWindowText(hwnd, sb, 256);
