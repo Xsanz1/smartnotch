@@ -115,7 +115,11 @@ public static class SettingsService
         }
     }
 
-    public static void Init() => Current = Load();
+    public static void Init()
+    {
+        Current = Load();
+        if (!File.Exists(DefaultPath)) Save(Current);
+    }
 
     /// <summary>Jadikan <paramref name="s"/> pengaturan aktif, simpan, lalu beritahu pendengar.</summary>
     public static void Apply(AppSettings s)
