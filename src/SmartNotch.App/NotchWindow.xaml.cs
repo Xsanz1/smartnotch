@@ -63,6 +63,8 @@ public partial class NotchWindow : Window
     private WaterWidget _waterWidget = null!;
     private SystemWidget _systemWidget = null!;
     private NotifWidget _notifWidget = null!;
+    private NotifItem? _currentPeekNotif;
+    private DateTime _peekHoverStart;
     private System.Drawing.Rectangle _screenBounds;
     private bool _positioning;
     private int _tab = -1;
@@ -87,6 +89,40 @@ public partial class NotchWindow : Window
             e.Handled = true;
         };
 
+        void OnPeekClicked()
+        {
+            if (_state != NotchState.Peek) return;
+            if (_currentPeekNotif != null)
+            {
+                var n = _currentPeekNotif;
+                _currentPeekNotif = null;
+                _peekTimer.Stop();
+                SetState(NotchState.Idle);
+                AppLauncherService.FocusOrLaunch(n);
+            }
+            else if (Media.HasSession)
+            {
+                _peekTimer.Stop();
+                SetState(NotchState.Idle);
+                AppLauncherService.FocusOrLaunch("Spotify");
+            }
+        }
+
+        PeekLayer.MouseLeftButtonDown += (_, e) =>
+        {
+            OnPeekClicked();
+            e.Handled = true;
+        };
+
+        Body.MouseLeftButtonDown += (_, e) =>
+        {
+            if (_state == NotchState.Peek)
+            {
+                OnPeekClicked();
+                e.Handled = true;
+            }
+        };
+
         SettingsService.Changed += OnSettingsChanged;
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
         Loaded += OnLoaded;
@@ -101,6 +137,7 @@ public partial class NotchWindow : Window
         _peekTimer.Tick += (_, _) =>
         {
             _peekTimer.Stop();
+            _currentPeekNotif = null;
             if (_state == NotchState.Peek) SetState(NotchState.Idle);
         };
         _fsTimer.Tick += (_, _) => CheckFullscreen();
@@ -391,7 +428,7 @@ public partial class NotchWindow : Window
             if (!SettingsService.Current.ShowNotificationPeek) return;
             if (WhatsApp.CurrentCall.State == WhatsAppCallState.Incoming) return; // sudah ditangani peek panggilan
             if (ShowMessagePeek(n)) return;
-            ShowPeek($"🔔 {n.App}: {n.Title}", null, 4000);
+            ShowPeek($"🔔 {n.App}: {n.Title}", null, 4000, n);
         };
         Calendar.Reminder += (e, mins) => ShowPeek($"📅 {e.Title}  •  {(mins <= 0 ? "sekarang" : mins + " mnt lagi")}", null, 6000);
         Bluetooth.DeviceConnectionChanged += (name, connected, icon) =>
@@ -656,18 +693,49 @@ public partial class NotchWindow : Window
         if (inside || Pinned)
         {
             _lastInside = DateTime.UtcNow;
-            if (_state != NotchState.Expanded && inside) { _peekTimer.Stop(); SetState(NotchState.Expanded); }
+            if (_state == NotchState.Peek)
+            {
+                // Saat notif peek aktif dan kursor diarahkan ke notch:
+                // Hentikan timer auto-close sementara agar pengguna bisa membaca & mengklik
+                if (_peekTimer.IsEnabled) _peekTimer.Stop();
+
+                // Jika user menahan hover cukup lama (> 1200ms) tanpa klik, otomatis alihkan ke Expanded panel
+                if ((DateTime.UtcNow - _peekHoverStart).TotalMilliseconds > 1200)
+                {
+                    SetState(NotchState.Expanded);
+                    if (_currentPeekNotif != null && _widgets.Contains(_notifWidget))
+                    {
+                        SelectTab(_widgets.IndexOf(_notifWidget));
+                    }
+                }
+            }
+            else if (_state != NotchState.Expanded && inside)
+            {
+                SetState(NotchState.Expanded);
+            }
         }
-        else if (_state == NotchState.Expanded &&
-                 (DateTime.UtcNow - _lastInside).TotalMilliseconds > SettingsService.Current.CollapseDelayMs)
+        else
         {
-            SetState(NotchState.Idle);
+            _peekHoverStart = DateTime.UtcNow;
+            if (_state == NotchState.Peek && !_peekTimer.IsEnabled)
+            {
+                // Bila kursor keluar dari notif peek, lanjutkan countdown auto-close
+                _peekTimer.Interval = TimeSpan.FromMilliseconds(2500);
+                _peekTimer.Start();
+            }
+            else if (_state == NotchState.Expanded &&
+                     (DateTime.UtcNow - _lastInside).TotalMilliseconds > SettingsService.Current.CollapseDelayMs)
+            {
+                SetState(NotchState.Idle);
+            }
         }
     }
 
-    public void ShowPeek(string text, ImageSource? icon = null, int ms = 3000)
+    public void ShowPeek(string text, ImageSource? icon = null, int ms = 3000, NotifItem? notif = null)
     {
         if (IsHidden || _state == NotchState.Expanded) return;
+        _currentPeekNotif = notif;
+        _peekHoverStart = DateTime.UtcNow;
         _peekSize = PeekSize;
         PeekLayer.Height = 40;
         PeekBody.Visibility = Visibility.Collapsed;
@@ -688,6 +756,9 @@ public partial class NotchWindow : Window
     {
         if (string.IsNullOrWhiteSpace(n.Body)) return false;
         if (IsHidden || _state == NotchState.Expanded) return true;
+
+        _currentPeekNotif = n;
+        _peekHoverStart = DateTime.UtcNow;
 
         bool wa = n.App.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase);
         _peekSize = MessagePeekSize;
@@ -715,8 +786,13 @@ public partial class NotchWindow : Window
     {
         var old = _state;
         _state = s;
+        bool isPeek = s == NotchState.Peek;
         bool exp = s == NotchState.Expanded;
-        SetClickThrough(!exp);
+        bool interactive = exp || isPeek;
+        SetClickThrough(!interactive);
+
+        PeekLayer.IsHitTestVisible = isPeek;
+        PeekLayer.Cursor = isPeek ? Cursors.Hand : Cursors.Arrow;
 
         var size = CurrentSize;
         var dur = TimeSpan.FromMilliseconds(exp ? 320 : 250);

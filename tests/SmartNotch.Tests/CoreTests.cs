@@ -194,3 +194,42 @@ public class LogTests : IDisposable
         Assert.Contains("boom", text);
     }
 }
+
+public class AppLauncherTests
+{
+    [Theory]
+    [InlineData("WhatsApp", "whatsapp:")]
+    [InlineData("Telegram", "tg:")]
+    [InlineData("Discord", "discord:")]
+    [InlineData("Spotify", "spotify:")]
+    [InlineData("Teams", "msteams:")]
+    public void GetUriScheme_MatchesKnownApps(string app, string expectedUri)
+    {
+        var uri = AppLauncherService.GetUriScheme(app);
+        Assert.Equal(expectedUri, uri);
+    }
+
+    [Fact]
+    public void GetCandidateProcessNames_ContainsExpectedBinaries()
+    {
+        var wa = AppLauncherService.GetCandidateProcessNames("WhatsApp");
+        Assert.Contains("WhatsApp", wa);
+        Assert.Contains("WhatsApp.Root", wa);
+
+        var discord = AppLauncherService.GetCandidateProcessNames("Discord");
+        Assert.Contains("Discord", discord);
+    }
+
+    [Fact]
+    public void NotifItem_StoresPrimaryId()
+    {
+        var item = new NotifItem
+        {
+            App = "WhatsApp",
+            PrimaryId = "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App",
+            Title = "John",
+            Body = "Hello"
+        };
+        Assert.Equal("5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App", item.PrimaryId);
+    }
+}

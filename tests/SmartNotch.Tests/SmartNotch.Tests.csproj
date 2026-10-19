@@ -15,6 +15,9 @@
     <Compile Include="..\..\src\SmartNotch.App\Services\WaterTracker.cs" Link="Linked\WaterTracker.cs" />
     <Compile Include="..\..\src\SmartNotch.App\Services\CallAppMatcher.cs" Link="Linked\CallAppMatcher.cs" />
     <Compile Include="..\..\src\SmartNotch.App\Services\UpdateService.cs" Link="Linked\UpdateService.cs" />
+    <Compile Include="..\..\src\SmartNotch.App\Services\NotifItem.cs" Link="Linked\NotifItem.cs" />
+    <Compile Include="..\..\src\SmartNotch.App\Interop\Win32.cs" Link="Linked\Win32.cs" />
+    <Compile Include="..\..\src\SmartNotch.App\Services\AppLauncherService.cs" Link="Linked\AppLauncherService.cs" />
   </ItemGroup>
 
   <ItemGroup>

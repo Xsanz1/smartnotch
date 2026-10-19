@@ -184,7 +184,7 @@ Notch memiliki 7 widget modular yang dapat digeser secara horizontal:
 2. **Widget Kartu Panggilan (`CallWidget.cs`)**:
    - Avatar kontak beranimasi halo pulse hijau, nama kontak tebal, status panggilan, timer durasi real-time, visualisasi 4-batang gelombang suara, tombol **💬 Buka Aplikasi**, dan tombol **🎙 / 🔇 Mute Mic**.
 3. **Widget Pesan & Notifikasi (`NotifWidget.cs`)**:
-   - Menampilkan daftar pesan masuk WhatsApp dan notifikasi sistem dengan badge hijau `💬 WhatsApp`, waktu pesan, nama pengirim, dan teks isi pesan lengkap, dilengkapi tombol **Bersihkan**.
+   - Menampilkan daftar pesan masuk WhatsApp dan notifikasi sistem dengan badge hijau `💬 WhatsApp`, waktu pesan, nama pengirim, teks isi pesan lengkap, tombol **Bersihkan**, serta **kemampuan klik langsung (`↗`)**: Setiap kartu notifikasi dapat diklik untuk langsung membuka atau memfokuskan aplikasi pengirim ke layar depan melalui `AppLauncherService`.
 4. **Widget File Shelf (`ShelfWidget.cs`)**:
    - Area kotak putus-putus (*dashed border*) bertuliskan `📥 Lepaskan file di sini`.
    - Cukup seret (*drag and drop*) file apa pun ke notch untuk disimpan sementara, melihat daftar kartu berkas, dan menyeretnya kembali ke aplikasi lain.
@@ -226,6 +226,12 @@ Notch memiliki 7 widget modular yang dapat digeser secara horizontal:
    - Menangkap pesan kernel `WM_DEVICECHANGE` untuk mendeteksi tancap/cabut Flashdisk (membaca huruf drive dan volume label), HP, atau periferal USB.
 5. **Kabel Charger / Pengisi Daya**:
    - Membaca status AC Line secara instan dan menampilkan persentase baterai real-time saat charger dicolok atau dicabut.
+6. **Peluncur & Pemfokus Aplikasi Notifikasi (`AppLauncherService.cs`)**:
+   - Menangani pengalihan fokus saat pengguna mengklik banner notifikasi Peek atau kartu notifikasi di widget "Pesan":
+     - **Pencarian Jendela Terbuka**: Memeriksa `MainWindowHandle` dan seluruh top-level windows (`EnumWindows`) yang cocok dengan nama proses atau judul jendela (mis. WhatsApp, Telegram, Discord, Teams, Spotify, Skype, Zoom, Slack, dll.).
+     - **Restorasi Jendela & Foreground Bypass**: Memulihkan jendela yang terminimalkan (`SW_RESTORE`), membawa ke posisi paling atas (`BringWindowToTop`), dan mengeksekusi simulasi event tombol Alt (`VK_MENU`) agar sistem operasi Windows mengizinkan perpindahan status proses foreground tanpa diblokir.
+     - **Fallback Peluncuran**: Jika jendela belum aktif atau aplikasi berjalan di latar belakang, memicu URL Protocol Scheme (`whatsapp:`, `tg:`, `discord:`, dll.) atau menjalankan AUMID Windows Store Package via `shell:AppsFolder\<AUMID>`.
+     - **Smart Peek Hover**: Timer auto-close banner notifikasi otomatis dijeda saat kursor berada di atas notch agar pengguna leluasa membaca dan mengklik. Menahan kursor > 1.2 detik otomatis memperluas notch ke tab "Pesan".
 
 ---
 
@@ -251,13 +257,14 @@ Notch memiliki 7 widget modular yang dapat digeser secara horizontal:
   - Rotasi log otomatis membersihkan berkas yang lebih lama dari 7 hari.
   - Dilengkapi deduplikasi pesan log berulang untuk menjaga ukuran berkas tetap ringkas.
 - **Unit Test Suite (`tests/SmartNotch.Tests`)**:
-  - Dilengkapi 25 kasus pengujian otomatis berbasis xUnit:
+  - Dilengkapi 32 kasus pengujian otomatis berbasis xUnit:
     - Pengujian serialisasi dan deserialisasi `SettingsService`.
     - Pengujian normalisasi nilai di luar rentang dan fallback default.
     - Pengujian logika akumulasi dan rollover harian `WaterTracker`.
     - Pengujian pencocokan aplikasi panggilan `CallAppMatcher`.
     - Pengujian parsing versi dan komparator `UpdateService`.
     - Pengujian penulisan berkas dan pengecualian `Log`.
+    - Pengujian kandidat proses, skema URI, dan penyimpanan `PrimaryId` notifikasi `AppLauncherService`.
 
 ---
 

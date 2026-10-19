@@ -40,13 +40,14 @@ Dokumentasi teknis menyeluruh (arsitektur, alur pembuatan dari awal sampai akhir
 - **7 Widget Interaktif (Expanded Panel)**:
   - 🎵 **Musik & Lirik Sinkron**: Artwork album 56px, ambient glow warna dinamis, slider volume hardware interaktif, slider progress, kontrol playback, dan lirik sinkron 3-baris vertikal via LRCLIB.
   - 📞 **Kartu Panggilan (Call Card)**: Tampilan panggilan suara/video interaktif dengan tombol "Buka Aplikasi", tombol Mute/Unmute mic, gelombang suara, dan timer berjalan.
-  - 💬 **Pesan & Notifikasi**: Menampilkan daftar pesan WhatsApp masuk dengan badge kontak, waktu, teks pesan lengkap, dan tombol bersihkan.
+  - 💬 **Pesan & Notifikasi**: Menampilkan daftar pesan WhatsApp dan notifikasi masuk dengan badge kontak, waktu, teks pesan lengkap, tombol bersihkan, serta **dapat diklik langsung (`↗`) untuk membuka aplikasi pengirim**.
   - 📁 **File Shelf**: Kotak drop berkas putus-putus berbasis *drag & drop*.
   - ⏱ **Timer Fokus (Pomodoro)**: Pengatur waktu produktivitas dengan preset (5, 15, 25, 50 mnt), durasi kustom, dan notifikasi audio saat selesai.
   - 💧 **Pengingat Minum**: Timer hidrasi periodik yang menyimpan asupan harian otomatis di-reset saat ganti hari.
   - 📊 **Pemantau Sistem**: Grafik real-time beban CPU, RAM, dan internet download/upload speed.
 - **Deteksi Perangkat Keras & Pesan Otomatis (Peek Banner)**:
   - 💬 **Pesan WhatsApp Masuk**: Banner pop-up 2-baris menampilkan nama pengirim dan isi teks pesan secara instan.
+  - 🎯 **Klik Notifikasi untuk Membuka Aplikasi**: Mengklik banner notifikasi Peek atau kartu di panel widget akan langsung mengarahkan dan memfokuskan jendela aplikasi pengirim (WhatsApp, Telegram, Discord, Teams, dll.) ke layar depan. Dilengkapi *smart hover* (timer auto-close jeda saat kursor di atas notif, dan otomatis membuka panel Pesan jika ditahan > 1.2 detik).
   - 📞 **Panggilan Masuk**: Notifikasi saat panggilan suara/video WhatsApp, Zoom, Teams, Discord, atau Skype berdering.
   - 🎧 **Bluetooth**: Notifikasi otomatis saat TWS, AirPods, headphone, speaker, atau gamepad terhubung/terputus.
   - 💾 **USB & Type-C**: Deteksi instan saat Flashdisk, smartphone HP, atau periferal dicolokkan/dicabut.
@@ -74,7 +75,7 @@ Pastikan Anda telah memasang **.NET 10 SDK**. Jalankan skrip PowerShell berikut:
 
 ### Menjalankan Unit Test
 
-Proyek dilengkapi dengan 25 test cases otomatis (xUnit):
+Proyek dilengkapi dengan 32 test cases otomatis (xUnit):
 
 ```powershell
 dotnet test tests\SmartNotch.Tests

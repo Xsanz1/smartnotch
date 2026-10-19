@@ -106,7 +106,7 @@
                 </Grid>
 
                 <!-- 2. PEEK LAYER (Live activity notif singkat) -->
-                <Grid x:Name="PeekLayer" Height="40" VerticalAlignment="Top" Opacity="0" IsHitTestVisible="False">
+                <Grid x:Name="PeekLayer" Height="40" VerticalAlignment="Top" Opacity="0" IsHitTestVisible="False" Cursor="Hand">
                     <Border x:Name="PeekArtBox" Width="22" Height="22" CornerRadius="5" ClipToBounds="True"
                             HorizontalAlignment="Left" Margin="12,0,0,0" Visibility="Collapsed">
                         <Image x:Name="PeekArt" Stretch="UniformToFill"/>

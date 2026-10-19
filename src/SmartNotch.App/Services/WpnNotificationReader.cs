@@ -118,6 +118,7 @@ public sealed class WpnNotificationReader : IDisposable
             return new NotifItem
             {
                 App = FriendlyApp(primaryId),
+                PrimaryId = primaryId,
                 Title = texts[0],
                 Body = string.Join(" ", texts.Skip(1))
             };

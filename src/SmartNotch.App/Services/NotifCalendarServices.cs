@@ -6,13 +6,6 @@ using Windows.UI.Notifications.Management;
 
 namespace SmartNotch.App.Services;
 
-public sealed class NotifItem
-{
-    public string App { get; init; } = "";
-    public string Title { get; init; } = "";
-    public string Body { get; init; } = "";
-    public DateTime Time { get; init; } = DateTime.Now;
-}
 
 /// <summary>Notifikasi Windows lewat UserNotificationListener. Butuh izin dan (umumnya) package identity.</summary>
 public sealed class NotificationService
@@ -84,6 +77,7 @@ public sealed class NotificationService
                 var item = new NotifItem
                 {
                     App = n.AppInfo?.DisplayInfo?.DisplayName ?? "Aplikasi",
+                    PrimaryId = n.AppInfo?.AppUserModelId ?? "",
                     Title = texts.ElementAtOrDefault(0) ?? "",
                     Body = texts.ElementAtOrDefault(1) ?? ""
                 };

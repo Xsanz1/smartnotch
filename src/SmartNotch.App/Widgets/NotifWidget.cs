@@ -92,7 +92,25 @@ public sealed class NotifWidget : INotchWidget
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(12, 8, 12, 8),
-                Margin = new Thickness(0, 0, 0, 6)
+                Margin = new Thickness(0, 0, 0, 6),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"Klik untuk membuka {i.App}"
+            };
+
+            card.MouseEnter += (_, _) =>
+            {
+                card.Background = Ui.B("#28FFFFFF");
+                card.BorderBrush = Ui.B("#3AFFFFFF");
+            };
+            card.MouseLeave += (_, _) =>
+            {
+                card.Background = Ui.B("#16FFFFFF");
+                card.BorderBrush = Ui.B("#1AFFFFFF");
+            };
+            card.MouseLeftButtonDown += (_, e) =>
+            {
+                AppLauncherService.FocusOrLaunch(i);
+                e.Handled = true;
             };
 
             var topRow = new Grid();
@@ -111,10 +129,13 @@ public sealed class NotifWidget : INotchWidget
             appLabel.Children.Add(badge);
             appLabel.Children.Add(Ui.T(i.Title, 12, true, Brushes.White));
 
-            var time = Ui.T(i.Time.ToString("HH:mm"), 10, false, Ui.Dim);
+            var timeBox = new StackPanel { Orientation = Orientation.Horizontal };
+            timeBox.Children.Add(Ui.T(i.Time.ToString("HH:mm"), 10, false, Ui.Dim));
+            timeBox.Children.Add(Ui.T(" ↗", 10, true, Ui.B("#70FFFFFF")));
+
             topRow.Children.Add(appLabel);
-            Grid.SetColumn(time, 1);
-            topRow.Children.Add(time);
+            Grid.SetColumn(timeBox, 1);
+            topRow.Children.Add(timeBox);
 
             var content = new StackPanel { Children = { topRow } };
 
